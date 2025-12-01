@@ -169,6 +169,38 @@ const App: React.FC = () => {
     }
   };
 
+  const handleRegenerate = (id: string) => {
+    setHistory(prev => prev.map(item => {
+      if (item.id !== id) return item;
+
+      // Reconstruct base64 data from originalImage Data URI
+      // Data URI format: data:[<mediatype>][;base64],<data>
+      const parts = item.originalImage.split(',');
+      const meta = parts[0];
+      const base64Data = parts[1];
+      
+      let mimeType = 'image/png'; // default
+      const mimeMatch = meta.match(/:(.*?);/);
+      if (mimeMatch) {
+        mimeType = mimeMatch[1];
+      }
+
+      return {
+        ...item,
+        status: 'queued',
+        generatedImage: '', // Clear previous result
+        base64Data: base64Data,
+        mimeType: mimeType,
+        // Apply current studio settings to the re-generation
+        materialType: materialType,
+        shadowAngle: shadowAngle,
+        shadowIntensity: shadowIntensity,
+        backgroundDistance: backgroundDistance,
+        timestamp: Date.now() // Move to top of effective list logic if needed, though ID keeps order
+      };
+    }));
+  };
+
   const handleClearHistory = () => {
     setHistory([]);
   };
@@ -388,7 +420,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <HistoryGallery history={history} onClearHistory={handleClearHistory} />
+        <HistoryGallery history={history} onClearHistory={handleClearHistory} onRegenerate={handleRegenerate} />
 
         {history.length === 0 && (
            <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 opacity-30 pointer-events-none grayscale">
