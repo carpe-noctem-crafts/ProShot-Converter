@@ -6,18 +6,40 @@ interface HistoryGalleryProps {
   history: HistoryItem[];
   onClearHistory: () => void;
   onRegenerate: (id: string) => void;
+  onRate: (id: string, rating: number) => void;
 }
 
-export const HistoryGallery: React.FC<HistoryGalleryProps> = ({ history, onClearHistory, onRegenerate }) => {
+export const HistoryGallery: React.FC<HistoryGalleryProps> = ({ history, onClearHistory, onRegenerate, onRate }) => {
   const handleDownload = (dataUri: string, item: HistoryItem) => {
     const link = document.createElement('a');
     link.href = dataUri;
     
-    let downloadName = `pro-shot-${item.id}.png`;
+    // Construct sophisticated filename with parameters
+    let cleanName = "image";
     if (item.originalFilename) {
-        const namePart = item.originalFilename.substring(0, item.originalFilename.lastIndexOf('.')) || item.originalFilename;
-        downloadName = `pro_${namePart}.png`;
+        cleanName = item.originalFilename.substring(0, item.originalFilename.lastIndexOf('.')) || item.originalFilename;
+        // Sanitize filename
+        cleanName = cleanName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     }
+
+    // Build parameter string
+    const mat = item.materialType || 'std';
+    const ang = item.shadowAngle !== undefined ? `_ang${item.shadowAngle}` : '';
+    let extra = "";
+    
+    if (item.materialType === 'metal' || item.materialType === 'patina' || item.materialType === 'silver' || item.materialType === 'ammonia') {
+        if (item.patinaIntensity && item.patinaIntensity > 0) {
+            extra += `_pat${item.patinaIntensity}`;
+        }
+    }
+    if (item.materialType === 'texture' && item.textureIntensity) {
+        extra += `_tex${item.textureIntensity}`;
+    }
+    if (item.backgroundDistance && item.backgroundDistance > 0) {
+        extra += `_elev${item.backgroundDistance}`;
+    }
+
+    const downloadName = `pro_${cleanName}_${mat}${extra}${ang}.png`;
 
     link.download = downloadName;
     document.body.appendChild(link);
@@ -80,15 +102,55 @@ export const HistoryGallery: React.FC<HistoryGalleryProps> = ({ history, onClear
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {history.map((item) => {
           const SettingsBadges = () => (
-            <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-20">
+            <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-20 pointer-events-none">
               {item.materialType === 'metal' && (
                 <span className="bg-amber-500/80 backdrop-blur-md text-black text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-amber-300/20">
                   METAL
                 </span>
               )}
+               {item.materialType === 'metal' && item.patinaIntensity !== undefined && item.patinaIntensity > 0 && (
+                <span className="bg-amber-700/80 backdrop-blur-md text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-amber-500/20">
+                  PATINA:{item.patinaIntensity}%
+                </span>
+              )}
+              {item.materialType === 'silver' && (
+                <span className="bg-slate-400/80 backdrop-blur-md text-black text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-slate-300/20">
+                  SILVER
+                </span>
+              )}
+               {item.materialType === 'silver' && item.patinaIntensity !== undefined && item.patinaIntensity > 0 && (
+                <span className="bg-slate-700/80 backdrop-blur-md text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-slate-500/20">
+                  TARNISH:{item.patinaIntensity}%
+                </span>
+              )}
+              {item.materialType === 'patina' && (
+                <span className="bg-teal-500/80 backdrop-blur-md text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-teal-300/20">
+                  AGED PATINA
+                </span>
+              )}
+               {item.materialType === 'patina' && item.patinaIntensity !== undefined && (
+                <span className="bg-teal-700/80 backdrop-blur-md text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-teal-500/20">
+                  DEPTH:{item.patinaIntensity}%
+                </span>
+              )}
+               {item.materialType === 'ammonia' && (
+                <span className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 opacity-90 backdrop-blur-md text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-purple-300/20">
+                  AMMONIA
+                </span>
+              )}
+              {item.materialType === 'stone' && (
+                <span className="bg-purple-500/80 backdrop-blur-md text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-purple-300/20">
+                  STONE/GEM
+                </span>
+              )}
               {item.materialType === 'texture' && (
                 <span className="bg-emerald-500/80 backdrop-blur-md text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-emerald-300/20">
                   TEXTURE
+                </span>
+              )}
+               {item.materialType === 'texture' && item.textureIntensity !== undefined && (
+                <span className="bg-emerald-500/80 backdrop-blur-md text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-emerald-300/20">
+                  TEX:{item.textureIntensity}%
                 </span>
               )}
               {item.backgroundDistance && item.backgroundDistance > 5 ? (
@@ -99,6 +161,11 @@ export const HistoryGallery: React.FC<HistoryGalleryProps> = ({ history, onClear
               {item.shadowAngle !== undefined && (
                 <span className="bg-slate-700/80 backdrop-blur-md text-slate-300 text-[10px] font-mono px-1.5 py-0.5 rounded shadow-sm border border-slate-600/30">
                   {item.shadowAngle}°
+                </span>
+              )}
+               {item.aspectRatio && item.aspectRatio !== '1:1' && (
+                <span className="bg-indigo-600/80 backdrop-blur-md text-white text-[10px] font-mono px-1.5 py-0.5 rounded shadow-sm border border-indigo-400/30">
+                  {item.aspectRatio}
                 </span>
               )}
             </div>
@@ -128,28 +195,43 @@ export const HistoryGallery: React.FC<HistoryGalleryProps> = ({ history, onClear
 
           if (item.status === 'generating') {
             return (
-              <div key={item.id} className="relative aspect-square bg-slate-900 rounded-xl overflow-hidden border border-indigo-500/50 shadow-2xl group">
-                <div className="absolute inset-0">
-                  <img src={item.originalImage} className="w-full h-full object-cover opacity-20 blur-sm grayscale" alt="Processing" />
+              <div key={item.id} className="relative aspect-square bg-slate-900 rounded-xl overflow-hidden border border-indigo-500/50 shadow-[0_0_30px_rgba(99,102,241,0.15)] group">
+                {/* Background Image with Pulse */}
+                <div className="absolute inset-0 animate-pulse">
+                  <img src={item.originalImage} className="w-full h-full object-cover opacity-30 blur-sm grayscale contrast-125 scale-105" alt="Processing" />
                 </div>
                 
                 <SettingsBadges />
 
+                {/* Grid Overlay */}
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.1)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_80%)]"></div>
+
+                {/* Scanning Laser */}
                 <div className="absolute inset-0 overflow-hidden">
-                  <div className="w-full h-full bg-gradient-to-b from-transparent via-indigo-500/10 to-transparent animate-scan absolute top-0 left-0">
-                      <div className="w-full h-px bg-indigo-400/50 shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
-                  </div>
+                   <div className="absolute left-0 right-0 h-32 bg-gradient-to-b from-indigo-500/0 via-indigo-500/20 to-indigo-500/0 animate-scan pointer-events-none">
+                      <div className="absolute bottom-0 w-full h-px bg-indigo-400 shadow-[0_0_15px_2px_rgba(99,102,241,0.8)]"></div>
+                   </div>
                 </div>
 
+                {/* Central Status Indicator */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4 text-center">
-                  <div className="relative mb-4">
-                    <div className="w-12 h-12 rounded-full border-2 border-slate-700 border-t-indigo-500 animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></div>
+                  <div className="relative mb-5">
+                    {/* Outer Ring */}
+                    <div className="w-16 h-16 rounded-full border border-indigo-500/20 border-t-indigo-400 animate-[spin_3s_linear_infinite]"></div>
+                    {/* Inner Ring */}
+                    <div className="absolute inset-0 m-auto w-10 h-10 rounded-full border border-indigo-500/20 border-b-indigo-400 animate-[spin_2s_linear_infinite_reverse]"></div>
+                    {/* Core */}
+                    <div className="absolute inset-0 m-auto w-2 h-2 bg-indigo-100 rounded-full shadow-[0_0_15px_white] animate-pulse"></div>
+                  </div>
+                  
+                  <div className="space-y-1 backdrop-blur-md bg-black/40 px-4 py-2 rounded-xl border border-white/10 shadow-lg">
+                    <h3 className="text-indigo-300 font-bold tracking-[0.25em] text-xs uppercase drop-shadow-md">Rendering</h3>
+                    <div className="flex justify-center gap-1.5 mt-1">
+                      <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                      <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                      <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce"></span>
                     </div>
                   </div>
-                  <h3 className="text-indigo-200 font-semibold tracking-widest text-sm uppercase animate-pulse">Developing</h3>
-                  <p className="text-indigo-400/60 text-xs mt-2 font-mono">Simulating Lighting...</p>
                 </div>
               </div>
             );
@@ -182,7 +264,7 @@ export const HistoryGallery: React.FC<HistoryGalleryProps> = ({ history, onClear
           }
 
           return (
-            <div key={item.id} className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 shadow-xl group hover:border-indigo-500/50 transition-all duration-300">
+            <div key={item.id} className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 shadow-xl group hover:border-indigo-500/50 transition-all duration-300 flex flex-col h-full">
               <div className="relative aspect-square bg-slate-900">
                  <div className="absolute top-2 left-2 z-10 bg-black/60 px-2 py-1 rounded text-xs font-mono text-white/70 backdrop-blur-sm">
                    PROCESSED
@@ -191,7 +273,7 @@ export const HistoryGallery: React.FC<HistoryGalleryProps> = ({ history, onClear
                  <img 
                    src={item.generatedImage} 
                    alt="Generated Product" 
-                   className="w-full h-full object-cover"
+                   className="w-full h-full object-contain bg-white"
                  />
 
                  <div className="absolute bottom-2 left-2 w-16 h-16 rounded-md overflow-hidden border-2 border-white/20 shadow-lg bg-black">
@@ -221,16 +303,42 @@ export const HistoryGallery: React.FC<HistoryGalleryProps> = ({ history, onClear
                  </div>
               </div>
               
-              <div className="p-4 flex justify-between items-center bg-slate-800">
-                  <div className="text-xs text-slate-400 font-mono truncate max-w-[50%]">
-                      {item.originalFilename || `ID: ${item.id.slice(0, 8)}`}
-                  </div>
-                  <div className="flex gap-2">
-                    {item.materialType === 'metal' && <span className="text-[10px] text-amber-500 font-bold border border-amber-500/30 px-1 rounded">METAL</span>}
-                    {item.materialType === 'texture' && <span className="text-[10px] text-emerald-500 font-bold border border-emerald-500/30 px-1 rounded">TEXTURE</span>}
-                    <div className="text-xs text-indigo-400 font-medium">
-                        2K
+              <div className="p-4 flex flex-col gap-3 bg-slate-800 flex-grow justify-between">
+                  <div className="flex justify-between items-center">
+                    <div className="text-xs text-slate-400 font-mono truncate max-w-[50%]">
+                        {item.originalFilename || `ID: ${item.id.slice(0, 8)}`}
                     </div>
+                    <div className="flex gap-2">
+                        {item.materialType === 'metal' && <span className="text-[10px] text-amber-500 font-bold border border-amber-500/30 px-1 rounded">METAL</span>}
+                        {item.materialType === 'silver' && <span className="text-[10px] text-slate-300 font-bold border border-slate-300/30 px-1 rounded">SILVER</span>}
+                        {item.materialType === 'patina' && <span className="text-[10px] text-teal-400 font-bold border border-teal-400/30 px-1 rounded">AGED</span>}
+                        {item.materialType === 'ammonia' && <span className="text-[10px] text-indigo-400 font-bold border border-indigo-400/30 px-1 rounded">AMMONIA</span>}
+                        {item.materialType === 'stone' && <span className="text-[10px] text-purple-400 font-bold border border-purple-400/30 px-1 rounded">STONE</span>}
+                        {item.materialType === 'texture' && <span className="text-[10px] text-emerald-500 font-bold border border-emerald-500/30 px-1 rounded">TEXTURE</span>}
+                        <div className="text-xs text-indigo-400 font-medium">
+                            {item.aspectRatio || '1:1'}
+                        </div>
+                    </div>
+                  </div>
+
+                  {/* Rating System */}
+                  <div className="flex items-center justify-between border-t border-slate-700 pt-3 mt-1">
+                     <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Quality Feedback</span>
+                     <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                           <button
+                             key={star}
+                             onClick={() => onRate(item.id, star)}
+                             className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${
+                               (item.rating || 0) >= star ? 'text-yellow-400 hover:scale-110' : 'text-slate-600 hover:text-slate-400'
+                             }`}
+                           >
+                             <svg className="w-4 h-4" fill={(item.rating || 0) >= star ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                             </svg>
+                           </button>
+                        ))}
+                     </div>
                   </div>
               </div>
             </div>
